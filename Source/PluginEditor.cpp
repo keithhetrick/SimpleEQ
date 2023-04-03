@@ -12,7 +12,6 @@
 //==============================================================================
 SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p),
-
 peakFreqSliderAttachment(audioProcessor.apvts, "Peak Freq", peakFreqSlider),
 peakGainSliderAttachment(audioProcessor.apvts, "Peak Gain", peakGainSlider),
 peakQualitySliderAttachment(audioProcessor.apvts, "Peak Quality", peakQualitySlider),
@@ -30,11 +29,24 @@ highCutSlopeSliderAttachment(audioProcessor.apvts, "HighCut Slope", highCutSlope
         addAndMakeVisible(comp);
     }
     
+    const auto& params = audioProcessor.getParameters();
+    for( auto param : params )
+    {
+        param->addListener(this);
+    }
+    
+    startTimer(60);
+    
     setSize (600, 400);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {
+    const auto& params = audioProcessor.getParameters();
+    for( auto param : params )
+    {
+        param->removeListener(this);
+    }
 }
 
 //==============================================================================
@@ -67,8 +79,6 @@ void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
         if(! monoChain.isBypassed<ChainPositions::Peak>() )
             mag *= peak.coefficients->getMagnitudeForFrequency(freq, sampleRate);
         
-        //            if( !monoChain.isBypassed<ChainPositions::LowCut>() )
-        //            {
         if( !lowcut.isBypassed<0>() )
             mag *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if( !lowcut.isBypassed<1>() )
@@ -77,10 +87,7 @@ void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
             mag *= lowcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if( !lowcut.isBypassed<3>() )
             mag *= lowcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        //            }
-        
-        //            if( !monoChain.isBypassed<ChainPositions::HighCut>() )
-        //            {
+
         if( !highcut.isBypassed<0>() )
             mag *= highcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if( !highcut.isBypassed<1>() )
@@ -89,8 +96,7 @@ void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
             mag *= highcut.get<2>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
         if( !highcut.isBypassed<3>() )
             mag *= highcut.get<3>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
-        //            }
-        
+
         mags[i] = Decibels::gainToDecibels(mag);
     }
     
@@ -146,7 +152,11 @@ void SimpleEQAudioProcessorEditor::timerCallback()
 {
     if( parametersChanges.compareAndSetBool(false, true) )
     {
+        auto chainSettings = getChainSettings(audioProcessor.apvts);
+        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
         
+        repaint();
     }
 }
 
