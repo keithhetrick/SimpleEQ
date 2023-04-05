@@ -81,6 +81,7 @@ void RotarySliderWithLabels::paint(juce::Graphics &g)
 //==============================================================================
 // FOR DEBUGGING - SLIDER BORDER
 //==============================================================================
+
 //    g.setColour(Colours::red);
 //    g.drawRect(getLocalBounds());
 //    g.setColour(Colours::yellow);
@@ -207,7 +208,6 @@ void ResponseCurveComponent::timerCallback()
     if( parametersChanged.compareAndSetBool(false, true) )
     {
         DBG( "params changed" );
-        // update monochain
         updateChain();
         
         repaint();
@@ -235,7 +235,6 @@ void ResponseCurveComponent::paint (juce::Graphics& g)
     
     g.drawImage(background, getLocalBounds().toFloat());
 
-//    auto responseArea = getLocalBounds();
     auto responseArea = getAnalysisArea();
     
     auto w = responseArea.getWidth();
@@ -350,8 +349,6 @@ void ResponseCurveComponent::resized()
         g.drawHorizontalLine(y, left, right);
     }
     
-//    g.drawRect(getAnalysisArea());
-    
     g.setColour(Colours::lightgrey);
     const int fontHeight = 10;
     g.setFont(fontHeight);
@@ -403,17 +400,22 @@ void ResponseCurveComponent::resized()
         g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::lightgrey );
         
         g.drawFittedText(str, r, juce::Justification::centred, 1);
+        
+        str.clear();
+        str << (gDb - 24.f);
+        
+        r.setX(1);
+        textWidth = g.getCurrentFont().getStringWidth(str);
+        r.setSize(textWidth, fontHeight);
+        g.setColour(Colours::lightgrey);
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
     }
 }
 
 juce::Rectangle<int> ResponseCurveComponent::getRenderArea()
 {
     auto bounds = getLocalBounds();
-    
-//    bounds.reduce(10, // JUCE_LIVE_CONSTANT(5),
-//                  8 // JUCE_LIVE_CONSTANT(5)
-//                  );
-    
+
     bounds.removeFromTop(12);
     bounds.removeFromBottom(2);
     bounds.removeFromLeft(20);
@@ -451,9 +453,6 @@ highCutFreqSliderAttachment(audioProcessor.apvts, "HighCut Freq", highCutFreqSli
 lowCutSlopeSliderAttachment(audioProcessor.apvts, "LowCut Slope", lowCutSlopeSlider),
 highCutSlopeSliderAttachment(audioProcessor.apvts, "HighCut Slope", highCutSlopeSlider)
 {
-    // Make sure that before the constructor has finished, you've set the
-    // editor's size to whatever you need it to be.
-    
     peakFreqSlider.labels.add({0.f, "20Hz"});
     peakFreqSlider.labels.add({1.f, "20kHz"});
     
