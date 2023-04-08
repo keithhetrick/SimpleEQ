@@ -64,7 +64,44 @@ void LookAndFeel::drawRotarySlider(juce::Graphics & g,
         g.setColour(Colours::white);
         g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
     }
+}
 
+void LookAndFeel::drawToggleButton(juce::Graphics &g,
+                                   juce::ToggleButton &toggleButton,
+                                   bool shouldDrawButtonAsHighlighted,
+                                   bool shouldDrawButtonAsDown)
+{
+    using namespace juce;
+    
+    Path powerButton;
+    
+    auto bounds = toggleButton.getLocalBounds();
+    auto size = jmin(bounds.getWidth(), bounds.getHeight()) - 4;
+    auto r = bounds.withSizeKeepingCentre(size, size).toFloat();
+    
+    float ang = 25.f;
+    
+    size -= 7;
+    
+    powerButton.addCentredArc(r.getCentreX(),
+                              r.getCentreY(),
+                              size * 0.5,
+                              size * 0.5,
+                              0.f,
+                              degreesToRadians(ang),
+                              degreesToRadians(360.f - ang),
+                              true);
+    
+    powerButton.startNewSubPath(r.getCentreX(), r.getY());
+    powerButton.lineTo(r.getCentre());
+    
+    PathStrokeType pst(2.f, PathStrokeType::JointStyle::curved);
+    
+    auto color = toggleButton.getToggleState() ? Colours::dimgrey : Colour(0u, 172u, 1u);
+    
+    g.setColour(color);
+    g.strokePath(powerButton, pst);
+    g.drawEllipse(r, 2);
 }
 //==============================================================================
 void RotarySliderWithLabels::paint(juce::Graphics &g)
@@ -575,11 +612,18 @@ analyzerEnabledButtonAttachment(audioProcessor.apvts, "Analyzer Enabled", analyz
         addAndMakeVisible(comp);
     }
     
+    peakBypassButton.setLookAndFeel(&lnf);
+    lowcutBypassButton.setLookAndFeel(&lnf);
+    highcutBypassButton.setLookAndFeel(&lnf);
+    
     setSize (600, 480);
 }
 
 SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 {
+    peakBypassButton.setLookAndFeel(nullptr);
+    lowcutBypassButton.setLookAndFeel(nullptr);
+    highcutBypassButton.setLookAndFeel(nullptr);
 
 }
 
