@@ -1,10 +1,10 @@
 /*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin editor.
-
-  ==============================================================================
-*/
+ ==============================================================================
+ 
+ This file contains the basic framework code for a JUCE plugin editor.
+ 
+ ==============================================================================
+ */
 
 #pragma once
 
@@ -43,7 +43,17 @@ struct FFTDataGenerator
         //normalize the fft values.
         for( int i = 0; i < numBins; ++i )
         {
-            fftData[i] /= (float) numBins;
+            auto v = fftData[i];
+            //            fftData[i] /= (float) numBins;
+            if( !std::isinf(v) && !std::isnan(v) )
+            {
+                v /= float(numBins);
+            }
+            else
+            {
+                v = 0.f;
+            }
+            fftData[i] = v;
         }
         
         //convert them to decibels
@@ -65,11 +75,11 @@ struct FFTDataGenerator
         auto fftSize = getFFTSize();
         
         forwardFFT = std::make_unique<juce::dsp::FFT>(order);
-        window = std::make_unique<juce::dsp::WindowingFunction<float>>(fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
+        window =     std::make_unique<juce::dsp::WindowingFunction<float>>(fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
         
-        fftData.clear();
+        fftData.clear ();
         fftData.resize(fftSize * 2, 0);
-
+        
         fftDataFifo.prepare(fftData.size());
     }
     //==============================================================================
@@ -93,43 +103,43 @@ struct AnalyzerPathGenerator
      converts 'renderData[]' into a juce::Path
      */
     void generatePath(const std::vector<float>& renderData,
-                      juce::Rectangle<float> fftBounds,
+                      juce::Rectangle  <float> fftBounds,
                       int fftSize,
                       float binWidth,
                       float negativeInfinity)
     {
-        auto top = fftBounds.getY();
+        auto top =    fftBounds.getY();
         auto bottom = fftBounds.getHeight();
-        auto width = fftBounds.getWidth();
-
+        auto width =  fftBounds.getWidth();
+        
         int numBins = (int)fftSize / 2;
-
+        
         PathType p;
         p.preallocateSpace(3 * (int)fftBounds.getWidth());
-
+        
         auto map = [bottom, top, negativeInfinity](float v)
         {
             return juce::jmap(v,
                               negativeInfinity, 0.f,
                               float(bottom+10),   top);
         };
-
+        
         auto y = map(renderData[0]);
-
-//        jassert( !std::isnan(y) && !std::isinf(y) );
+        
+        //        jassert( !std::isnan(y) && !std::isinf(y) );
         if( std::isnan(y) || std::isinf(y) )
             y = bottom;
         
         p.startNewSubPath(0, y);
-
+        
         const int pathResolution = 2; //you can draw line-to's every 'pathResolution' pixels.
-
+        
         for( int binNum = 1; binNum < numBins; binNum += pathResolution )
         {
             y = map(renderData[binNum]);
-
-//            jassert( !std::isnan(y) && !std::isinf(y) );
-
+            
+            //            jassert( !std::isnan(y) && !std::isinf(y) );
+            
             if( !std::isnan(y) && !std::isinf(y) )
             {
                 auto binFreq = binNum * binWidth;
@@ -138,15 +148,15 @@ struct AnalyzerPathGenerator
                 p.lineTo(binX, y);
             }
         }
-
+        
         pathFifo.push(p);
     }
-
+    
     int getNumPathsAvailable() const
     {
         return pathFifo.getNumAvailableForReading();
     }
-
+    
     bool getPath(PathType& path)
     {
         return pathFifo.pull(path);
@@ -174,7 +184,7 @@ struct RotarySliderWithLabels : juce::Slider
 {
     RotarySliderWithLabels(juce::RangedAudioParameter& rap, const juce::String& unitSuffix) :
     juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
-                                        juce::Slider::TextEntryBoxPosition::NoTextBox),
+                 juce::Slider::TextEntryBoxPosition::NoTextBox),
     param(&rap),
     suffix(unitSuffix)
     {
@@ -213,7 +223,6 @@ struct PathProducer
         leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
         monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
     }
-    
     void process(juce::Rectangle<float> fftBounds, double sampleRate);
     juce::Path getPath() { return leftChannelFFTPath; }
 private:
@@ -235,14 +244,14 @@ juce::Timer
     ResponseCurveComponent(SimpleEQAudioProcessor&);
     ~ResponseCurveComponent();
     
-    void parameterValueChanged (int parameterIndex, float newValue) override;
-
+    void parameterValueChanged   (int parameterIndex, float newValue) override;
+    
     void parameterGestureChanged (int parameterIndex, bool gestureIsStarting) override { }
     
-    void timerCallback() override;
+    void timerCallback()          override;
     
     void paint(juce::Graphics& g) override;
-    void resized() override;
+    void resized()                override;
     
     void toggleAnalysisEnablement(bool enabled)
     {
@@ -250,25 +259,35 @@ juce::Timer
     }
 private:
     SimpleEQAudioProcessor& audioProcessor;
+    
+    bool shouldShowFFTAnalysis = true;
+    
     juce::Atomic<bool> parametersChanged { false };
     
     MonoChain monoChain;
     
+    void updateResponseCurve();
+    
+    juce::Path responseCurve;
+    
     void updateChain();
     
-    juce::Image background;
+    void drawBackgroundGrid(juce::Graphics& g);
+    void drawTextLabels    (juce::Graphics& g);
+    
+    std::vector<float> getFrequencies();
+    std::vector<float> getGains();
+    std::vector<float> getXs(const std::vector<float>& freqs, float left, float width);
     
     juce::Rectangle<int> getRenderArea();
     
     juce::Rectangle<int> getAnalysisArea();
     
     PathProducer leftPathProducer, rightPathProducer;
-    
-    bool shouldShowFFTAnalysis = true;
 };
-
 //==============================================================================
 struct PowerButton : juce::ToggleButton { };
+
 struct AnalyzerButton : juce::ToggleButton
 {
     void resized() override
@@ -280,40 +299,43 @@ struct AnalyzerButton : juce::ToggleButton
         
         juce::Random r;
         
-        randomPath.startNewSubPath(insetRect.getX(), insetRect.getY() + insetRect.getHeight() * r.nextFloat());
+        randomPath.startNewSubPath(insetRect.getX(),
+                                   insetRect.getY() + insetRect.getHeight() * r.nextFloat());
         
         for( auto x = insetRect.getX() + 1; x < insetRect.getRight(); x += 2 )
         {
-            randomPath.lineTo(x, insetRect.getY() + insetRect.getHeight() * r.nextFloat());
+            randomPath.lineTo(x,
+                              insetRect.getY() + insetRect.getHeight() * r.nextFloat());
         }
     }
     
     juce::Path randomPath;
 };
 /**
-*/
+ */
 class SimpleEQAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
     SimpleEQAudioProcessorEditor (SimpleEQAudioProcessor&);
     ~SimpleEQAudioProcessorEditor() override;
-
+    
     //==============================================================================
     void paint (juce::Graphics&) override;
-    void resized() override;
+    void resized()               override;
     
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
     SimpleEQAudioProcessor& audioProcessor;
     
+    
     RotarySliderWithLabels peakFreqSlider,
-    peakGainSlider,
-    peakQualitySlider,
-    lowCutFreqSlider,
-    highCutFreqSlider,
-    lowCutSlopeSlider,
-    highCutSlopeSlider;
+                           peakGainSlider,
+                           peakQualitySlider,
+                           lowCutFreqSlider,
+                           highCutFreqSlider,
+                           lowCutSlopeSlider,
+                           highCutSlopeSlider;
     
     ResponseCurveComponent responseCurveComponent;
     
@@ -321,25 +343,26 @@ private:
     using Attachment = APVTS::SliderAttachment;
     
     Attachment peakFreqSliderAttachment,
-                peakGainSliderAttachment,
-                peakQualitySliderAttachment,
-                lowCutFreqSliderAttachment,
-                highCutFreqSliderAttachment,
-                lowCutSlopeSliderAttachment,
-                highCutSlopeSliderAttachment;
+               peakGainSliderAttachment,
+               peakQualitySliderAttachment,
+               lowCutFreqSliderAttachment,
+               highCutFreqSliderAttachment,
+               lowCutSlopeSliderAttachment,
+               highCutSlopeSliderAttachment;
+    
+    std::vector<juce::Component*> getComps();
     
     PowerButton lowcutBypassButton, peakBypassButton, highcutBypassButton;
     AnalyzerButton analyzerEnabledButton;
     
     using ButtonAttachment = APVTS::ButtonAttachment;
+    
     ButtonAttachment lowcutBypassButtonAttachment,
                      peakBypassButtonAttachment,
                      highcutBypassButtonAttachment,
                      analyzerEnabledButtonAttachment;
     
-    std::vector<juce::Component*> getComps();
-    
     LookAndFeel lnf;
-                                           
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessorEditor)
 };
